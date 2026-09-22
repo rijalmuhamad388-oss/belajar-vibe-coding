@@ -1,7 +1,18 @@
 import { Elysia, t } from "elysia";
-import { registerUser, loginUser, getCurrentUser } from "../services/users-services";
+import { registerUser, loginUser, getCurrentUser, logoutUser } from "../services/users-services";
 
 export const usersRoute = new Elysia()
+  .onError(({ code, error, set }) => {
+    if (code === "VALIDATION") {
+      return;
+    }
+    if (error?.message === "Unauthorized") {
+      set.status = 401;
+      return { error: "Unauthorized" };
+    }
+    set.status = 500;
+    return { error: error?.message || "Internal Server Error" };
+  })
   .post(
     "/api/register",
     async ({ body, set }) => {
@@ -17,8 +28,7 @@ export const usersRoute = new Elysia()
           set.status = 400;
           return { error: "Email sudah terdaftar" };
         }
-        set.status = 500;
-        return { error: error?.message || "Internal Server Error" };
+        throw error;
       }
     },
     {
@@ -40,8 +50,7 @@ export const usersRoute = new Elysia()
           set.status = 400;
           return { error: "Email atau password salah" };
         }
-        set.status = 500;
-        return { error: error?.message || "Internal Server Error" };
+        throw error;
       }
     },
     {
@@ -51,29 +60,29 @@ export const usersRoute = new Elysia()
       }),
     }
   )
-  .get("/api/users/current", async ({ headers, set }) => {
-    try {
-      const authHeader = headers.authorization || headers["authorization"];
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        set.status = 401;
-        return { error: "Unauthorized" };
-      }
+  .group("/api/users", (app) =>
+    app
+      .derive(({ headers }) => {
+        const authHeader = headers.authorization || headers["authorization"];
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          throw new Error("Unauthorized");
+        }
 
-      const token = authHeader.slice(7).trim();
-      if (!token) {
-        set.status = 401;
-        return { error: "Unauthorized" };
-      }
+        const token = authHeader.slice(7).trim();
+        if (!token) {
+          throw new Error("Unauthorized");
+        }
 
-      const user = await getCurrentUser(token);
-      return { data: user };
-    } catch (error: any) {
-      if (error?.message === "Unauthorized") {
-        set.status = 401;
-        return { error: "Unauthorized" };
-      }
-      set.status = 500;
-      return { error: error?.message || "Internal Server Error" };
-    }
-  });
+        return { token };
+      })
+      .get("/current", async ({ token }) => {
+        const user = await getCurrentUser(token);
+        return { data: user };
+      })
+      .delete("/logout", async ({ token }) => {
+        await logoutUser(token);
+        return { data: "OK" };
+      })
+  );
+
 
