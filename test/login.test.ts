@@ -141,7 +141,7 @@ describe("Feature: Login User & Session Management", () => {
       );
 
       expect(response.status).toBe(200);
-      const json = await response.json();
+      const json = (await response.json()) as any;
       expect(json.data).toBeDefined();
       expect(typeof json.data).toBe("string");
     });
