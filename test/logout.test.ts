@@ -17,15 +17,7 @@ const { usersRoute } = await import("../src/routes/users-route");
 describe("Feature: Logout User (DELETE /api/users/logout)", () => {
   describe("Service: logoutUser", () => {
     it("should delete session and return { data: 'OK' } when token exists", async () => {
-      mockSelect.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            limit: async () => [{ id: 1, token: "valid-token", userId: 1 }],
-          }),
-        }),
-      });
-
-      const mockWhere = mock();
+      const mockWhere = mock(async () => [{ affectedRows: 1 }]);
       mockDelete.mockReturnValueOnce({
         where: mockWhere,
       });
@@ -37,12 +29,9 @@ describe("Feature: Logout User (DELETE /api/users/logout)", () => {
     });
 
     it("should throw error 'Unauthorized' when token is not found", async () => {
-      mockSelect.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            limit: async () => [],
-          }),
-        }),
+      const mockWhere = mock(async () => [{ affectedRows: 0 }]);
+      mockDelete.mockReturnValueOnce({
+        where: mockWhere,
       });
 
       await expect(logoutUser("invalid-token")).rejects.toThrow("Unauthorized");
@@ -53,16 +42,8 @@ describe("Feature: Logout User (DELETE /api/users/logout)", () => {
     const app = new Elysia().use(usersRoute);
 
     it("should return HTTP 200 and { data: 'OK' } when Authorization Bearer token is valid", async () => {
-      mockSelect.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            limit: async () => [{ id: 1, token: "valid-token-123", userId: 1 }],
-          }),
-        }),
-      });
-
       mockDelete.mockReturnValueOnce({
-        where: mock(),
+        where: mock(async () => [{ affectedRows: 1 }]),
       });
 
       const response = await app.handle(
@@ -122,12 +103,8 @@ describe("Feature: Logout User (DELETE /api/users/logout)", () => {
     });
 
     it("should return HTTP 401 when token is not found in database", async () => {
-      mockSelect.mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            limit: async () => [],
-          }),
-        }),
+      mockDelete.mockReturnValueOnce({
+        where: mock(async () => [{ affectedRows: 0 }]),
       });
 
       const response = await app.handle(
