@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { registerUser, loginUser } from "../services/users-services";
+import { registerUser, loginUser, getCurrentUser } from "../services/users-services";
 
 export const usersRoute = new Elysia()
   .post(
@@ -50,4 +50,30 @@ export const usersRoute = new Elysia()
         password: t.String(),
       }),
     }
-  );
+  )
+  .get("/api/users/current", async ({ headers, set }) => {
+    try {
+      const authHeader = headers.authorization || headers["authorization"];
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        set.status = 401;
+        return { error: "Unauthorized" };
+      }
+
+      const token = authHeader.slice(7).trim();
+      if (!token) {
+        set.status = 401;
+        return { error: "Unauthorized" };
+      }
+
+      const user = await getCurrentUser(token);
+      return { data: user };
+    } catch (error: any) {
+      if (error?.message === "Unauthorized") {
+        set.status = 401;
+        return { error: "Unauthorized" };
+      }
+      set.status = 500;
+      return { error: error?.message || "Internal Server Error" };
+    }
+  });
+

@@ -65,3 +65,23 @@ export const loginUser = async (input: LoginUserInput) => {
 
   return token;
 };
+
+export const getCurrentUser = async (token: string) => {
+  const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .innerJoin(sessions, eq(sessions.userId, users.id))
+    .where(eq(sessions.token, token))
+    .limit(1);
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  return user;
+};
